@@ -1,83 +1,59 @@
 package taxcalc
 
 import (
+	"fmt"
+
 	"github.com/shopspring/decimal"
 )
 
-func Tax(income decimal.Decimal) decimal.Decimal {
-	if income.GreaterThanOrEqual(decimal.RequireFromString("100000")) {
-
-		return decimal.RequireFromString(
-			"0.1").Mul(
-			decimal.RequireFromString("20000")).Add(
-			decimal.RequireFromString("0.25").Mul(
-				decimal.RequireFromString("70000"))).Add(
-			decimal.RequireFromString("0.4").Mul(
-				income.Sub(decimal.RequireFromString("100000")),
-			),
-		)
-	} else if income.GreaterThanOrEqual(decimal.RequireFromString("30000")) {
-
-		return decimal.RequireFromString(
-			"0.1").Mul(
-			decimal.RequireFromString("20000")).Add(
-			decimal.RequireFromString("0.25").Mul(
-				income.Sub(decimal.RequireFromString("30000")),
-			),
-		)
-	} else if income.GreaterThanOrEqual(decimal.RequireFromString("10000")) {
-		return decimal.RequireFromString("0.1").Mul(
-			income.Sub(decimal.RequireFromString("10000")),
-		)
-	}
-	return decimal.Zero
+type Bracket struct {
+	Rate  decimal.Decimal
+	Lower decimal.Decimal
+	Upper decimal.Decimal
 }
 
-// Works from : https://www.reddit.com/r/dailyprogrammer/comments/cdieag/20190715_challenge_379_easy_progressive_taxation/ew1dn5n?utm_source=share&utm_medium=web2x&context=3
-// func Tax(income int) float64 {
-// 	if income > 100000 {
-// 		return (0.1 * float64(20000)) + (0.25 * float64(70000)) + (0.4 * math.Abs(float64(100000-income)))
-// 	} else if income > 30000 {
-// 		return (0.1 * float64(20000)) + (0.25 * math.Abs(float64(30000-income)))
-// 	} else if income > 10000 {
-// 		return 0.1 * math.Abs(float64(10000-income))
-// 	} else {
-// 		return 0
-// 	}
-// }
+type Calc struct {
+	brackets []Bracket
+}
 
-// type Bracket struct {
-// 	Rate  decimal.Decimal
-// 	Lower decimal.Decimal
-// 	Upper decimal.Decimal
-// }
+func NewCalc(bracket []Bracket) *Calc {
+	return &Calc{brackets: bracket}
+}
 
-// type Calc struct {
-// 	tax    decimal.Decimal
-// 	income decimal.Decimal
-// }
+func (c *Calc) Tax(income decimal.Decimal) decimal.Decimal {
+	first := c.brackets[0].Upper.Sub(c.brackets[0].Lower).Mul(c.brackets[0].Rate)
+	second := c.brackets[1].Upper.Sub(c.brackets[1].Lower).Mul(c.brackets[1].Rate)
+	third := c.brackets[2].Upper.Sub(c.brackets[2].Lower).Mul(c.brackets[2].Rate)
 
-// func NewCalc(bracket []Bracket, income decimal.Decimal) *Calc {
-// 	// income := decimal.RequireFromString("12345")
+	fmt.Printf("\n\n1st section tax: %v\n2nd section tax: %v\n3rd section tax: %v\n", first, second, third)
+	if income.GreaterThan(c.brackets[3].Lower) {
+		fmt.Printf("\n%v\n", income.Sub(c.brackets[3].Lower).Mul(c.brackets[3].Rate))
+		fmt.Println(income.Sub(c.brackets[3].Lower).Mul(c.brackets[3].Rate).Add(first).Add(second).Add(third))
+	}
+	var nextLower decimal.Decimal
+	_ = nextLower
+	var tax decimal.Decimal
+	for i := range c.brackets {
+		// fmt.Println(tax)
+		var taxableIncome decimal.Decimal
+		if i+1 < len(c.brackets) {
+			nextLower = c.brackets[i+1].Lower
+		}
+		if income.GreaterThan(c.brackets[i].Lower) {
+			if income.GreaterThan(nextLower) {
+				taxableIncome = income.Sub(nextLower).Sub(c.brackets[i].Lower)
 
-// 	for i := range bracket {
-// 		fmr.Println(Calc.DoTheMath(bracket))
-
-// 	}
-// 	return &Calc{}
-// }
-
-// func (c *Calc) DoTheMath(income decimal.Decimal) decimal.Decimal {
-// 	var payment decimal.Decimal
-// 	if income.GreaterThan(bracket[i].Lower) && income.LessThanOrEqual(bracket[i].Upper) {
-// 		fmt.Printf("\ninfo: %v\n\n", lastLineTax)
-// 		fmt.Println(bracket[i].Rate)
-// 		fmt.Println(bracket[i].Lower, " < ", income, " and <= ", bracket[i].Upper)
-// 		fmt.Println(bracket[i].Rate.Mul(income.Sub(bracket[i].Lower)).Round(2), " amount of tax for this bracket.")
-// 		totalTax = bracket[i].Rate.Mul(income.Sub(bracket[i].Lower)).Round(2)
-// 		lastLineTax = totalTax.Add(lastLineTax)
-// 		fmt.Printf("\nTotal Tax: %v\n\n", lastLineTax)
-// 	}
-
-// 	return payment
-// }
+			} else {
+				taxableIncome = income.Sub(c.brackets[i].Lower)
+				// if i+1 < len(c.brackets) {
+				// 	if income.GreaterThan(c.brackets[i+1].Lower) {
+				// 		taxableIncome = c.brackets[i+1].Lower
+				// 	}
+			}
+			tax = taxableIncome.Mul(c.brackets[i].Rate).Add(tax)
+		}
+		fmt.Printf("\nTax after %v\n\n", tax)
+	}
+	fmt.Printf("\nTax: %v, income: %v\n", tax, income)
+	return tax
+}
