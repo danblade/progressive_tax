@@ -1,15 +1,13 @@
 package taxcalc
 
 import (
-	"fmt"
-
-	"github.com/shopspring/decimal"
+	"math"
 )
 
 type Bracket struct {
-	Rate  decimal.Decimal
-	Lower decimal.Decimal
-	Upper decimal.Decimal
+	Rate  float64
+	Lower float64
+	Upper float64
 }
 
 type Calc struct {
@@ -20,40 +18,22 @@ func NewCalc(bracket []Bracket) *Calc {
 	return &Calc{brackets: bracket}
 }
 
-func (c *Calc) Tax(income decimal.Decimal) decimal.Decimal {
-	first := c.brackets[0].Upper.Sub(c.brackets[0].Lower).Mul(c.brackets[0].Rate)
-	second := c.brackets[1].Upper.Sub(c.brackets[1].Lower).Mul(c.brackets[1].Rate)
-	third := c.brackets[2].Upper.Sub(c.brackets[2].Lower).Mul(c.brackets[2].Rate)
-
-	fmt.Printf("\n\n1st section tax: %v\n2nd section tax: %v\n3rd section tax: %v\n", first, second, third)
-	if income.GreaterThan(c.brackets[3].Lower) {
-		fmt.Printf("\n%v\n", income.Sub(c.brackets[3].Lower).Mul(c.brackets[3].Rate))
-		fmt.Println(income.Sub(c.brackets[3].Lower).Mul(c.brackets[3].Rate).Add(first).Add(second).Add(third))
-	}
-	var nextLower decimal.Decimal
-	_ = nextLower
-	var tax decimal.Decimal
-	for i := range c.brackets {
-		// fmt.Println(tax)
-		var taxableIncome decimal.Decimal
-		if i+1 < len(c.brackets) {
-			nextLower = c.brackets[i+1].Lower
+func (c *Calc) Tax(income float64) float64 {
+	var tax float64
+	for _, bracket := range c.brackets {
+		taxableIncome := TaxableIncome(bracket.Lower, bracket.Upper, income)
+		if taxableIncome > 0 {
+			tax += taxableIncome * bracket.Rate
 		}
-		if income.GreaterThan(c.brackets[i].Lower) {
-			if income.GreaterThan(nextLower) {
-				taxableIncome = income.Sub(nextLower).Sub(c.brackets[i].Lower)
-
-			} else {
-				taxableIncome = income.Sub(c.brackets[i].Lower)
-				// if i+1 < len(c.brackets) {
-				// 	if income.GreaterThan(c.brackets[i+1].Lower) {
-				// 		taxableIncome = c.brackets[i+1].Lower
-				// 	}
-			}
-			tax = taxableIncome.Mul(c.brackets[i].Rate).Add(tax)
-		}
-		fmt.Printf("\nTax after %v\n\n", tax)
 	}
-	fmt.Printf("\nTax: %v, income: %v\n", tax, income)
-	return tax
+	return math.Floor(tax)
+}
+
+func TaxableIncome(lower, upper, income float64) float64 {
+	if income < lower {
+		return 0
+	} else if income > upper {
+		return upper - lower
+	}
+	return income - lower
 }
